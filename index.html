@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="VoxelCraft - A browser-based voxel sandbox game" />
+  <meta name="theme-color" content="#000000" />
+  <title>VoxelCraft</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+    }
+    #loading {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+    #loading h1 {
+      font-size: 48px;
+      letter-spacing: 4px;
+      margin: 0;
+      text-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    }
+    #loading .progress-bar {
+      width: 320px; height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    #loading .progress-bar-fill {
+      width: 0%; height: 100%;
+      background: #4CAF50;
+      transition: width 0.3s ease;
+    }
+    #loading .status {
+      font-size: 14px;
+      color: #aaa;
+    }
+    #loading .error {
+      color: #f44336;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <h1>VOXELCRAFT</h1>
+    <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    <div class="status" id="loading-status">Loading engine...</div>
+    <div class="error" id="loading-error"></div>
+  </div>
+  <div id="app" style="display:none; width:100%; height:100%;"></div>
+  <script type="module" src="/src/main.js"></script>
+  <noscript>
+    <div style="position:fixed; inset:0; background:#000; color:#fff; display:flex; align-items:center; justify-content:center; font-family:sans-serif;">
+      VoxelCraft requires JavaScript to run. Please enable JavaScript in your browser.
+    </div>
+  </noscript>
+</body>
+</html>

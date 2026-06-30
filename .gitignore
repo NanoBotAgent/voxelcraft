@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+*.log
+npm-debug.log*
+.env
+.env.local
+.env.*.local
+.vercel
