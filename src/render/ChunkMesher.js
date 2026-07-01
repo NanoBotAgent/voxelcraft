@@ -1,14 +1,14 @@
-// ChunkMesher.js - Per-face meshing with bright vertex colors for MeshBasicMaterial
+// ChunkMesher.js - Per-face meshing with vertex colors for face shading
 import * as THREE from 'three';
 import { CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_MIN_Y } from '../core/Chunk.js';
 
 const FACES = [
   { dir: [0, 1, 0], name: 'top', corners: [[0,1,1],[1,1,1],[1,1,0],[0,1,0]], shade: 1.0 },
-  { dir: [0, -1, 0], name: 'bottom', corners: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]], shade: 0.6 },
-  { dir: [1, 0, 0], name: 'right', corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]], shade: 0.85 },
-  { dir: [-1, 0, 0], name: 'left', corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]], shade: 0.85 },
-  { dir: [0, 0, 1], name: 'front', corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]], shade: 0.75 },
-  { dir: [0, 0, -1], name: 'back', corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], shade: 0.75 },
+  { dir: [0, -1, 0], name: 'bottom', corners: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]], shade: 0.5 },
+  { dir: [1, 0, 0], name: 'right', corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]], shade: 0.8 },
+  { dir: [-1, 0, 0], name: 'left', corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]], shade: 0.8 },
+  { dir: [0, 0, 1], name: 'front', corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]], shade: 0.7 },
+  { dir: [0, 0, -1], name: 'back', corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], shade: 0.7 },
 ];
 
 export class ChunkMesher {
@@ -89,8 +89,9 @@ export class ChunkMesher {
 
     const uv = this.textureAtlas ? this.textureAtlas.getUV(texName) : { u0: 0, v0: 0, u1: 1, v1: 1 };
 
-    // Brightness: face direction shading (MeshBasicMaterial uses vertex colors directly)
-    const brightness = Math.max(0.6, face.shade);
+    // Vertex color = face shade (1.0 for top, 0.5 for bottom, etc.)
+    // With MeshLambertMaterial + strong ambient, these values give good contrast
+    const brightness = face.shade;
 
     const [nx, ny, nz] = face.dir;
 
@@ -102,8 +103,7 @@ export class ChunkMesher {
       positions.push(px, py, pz);
       normals.push(nx, ny, nz);
 
-      // UV: map 4 corners to the 4 UV corners of the tile
-      // corners[0]=bottom-left, corners[1]=top-left, corners[2]=top-right, corners[3]=bottom-right
+      // UV mapping: corners[0]=BL, corners[1]=TL, corners[2]=TR, corners[3]=BR
       const cu = (i === 0 || i === 3) ? uv.u0 : uv.u1;
       const cv = (i === 0 || i === 1) ? uv.v1 : uv.v0;
       uvs.push(cu, cv);
