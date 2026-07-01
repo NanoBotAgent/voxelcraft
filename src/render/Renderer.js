@@ -20,7 +20,7 @@ export class Renderer {
       powerPreference: 'high-performance',
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // cap at 2x for perf
     this.renderer.setClearColor(0x87CEEB);
     container.appendChild(this.renderer.domElement);
 
@@ -72,7 +72,7 @@ export class Renderer {
 
   updateChunkMeshes(world) {
     let meshed = 0;
-    const maxPerFrame = 3;
+    const maxPerFrame = 4; // increased from 3 since greedy meshing is faster
 
     for (const [key, chunk] of world.chunks) {
       if (chunk.meshDirty && chunk.status === 'generated' && meshed < maxPerFrame) {
@@ -80,14 +80,17 @@ export class Renderer {
         if (chunk.mesh) {
           this.chunkGroup.remove(chunk.mesh);
           chunk.mesh.geometry.dispose();
+          chunk.mesh = null;
         }
 
-        // Build new mesh
+        // Build new mesh with greedy mesher
         const geometry = this.mesher.buildMesh(chunk, world);
-        const mesh = new THREE.Mesh(geometry, this.chunkMaterial);
-        mesh.position.set(chunk.cx * 16, 0, chunk.cz * 16);
-        this.chunkGroup.add(mesh);
-        chunk.mesh = mesh;
+        if (geometry) {
+          const mesh = new THREE.Mesh(geometry, this.chunkMaterial);
+          mesh.position.set(chunk.cx * 16, 0, chunk.cz * 16);
+          this.chunkGroup.add(mesh);
+          chunk.mesh = mesh;
+        }
         chunk.meshDirty = false;
         chunk.status = 'ready';
         meshed++;
