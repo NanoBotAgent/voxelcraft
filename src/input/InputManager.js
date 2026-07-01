@@ -1,4 +1,4 @@
-// InputManager.js - Keyboard, mouse, pointer lock
+// InputManager.js - Keyboard, mouse, pointer lock + mobile touch support
 import { EventBus } from '../core/EventBus.js';
 
 export class InputManager {
@@ -7,6 +7,7 @@ export class InputManager {
     this.keys = new Set();
     this.events = new EventBus();
     this.isPointerLocked = false;
+    this.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
     // Keyboard
     document.addEventListener('keydown', (e) => {
@@ -36,21 +37,28 @@ export class InputManager {
       this.events.emit('wheel', e);
     });
 
-    // Pointer lock
-    canvas.addEventListener('click', () => {
-      if (!this.isPointerLocked) {
-        canvas.requestPointerLock();
-      }
-    });
+    // Pointer lock (desktop only)
+    if (!this.isMobile) {
+      canvas.addEventListener('click', () => {
+        if (!this.isPointerLocked) {
+          canvas.requestPointerLock();
+        }
+      });
 
-    document.addEventListener('pointerlockchange', () => {
-      this.isPointerLocked = document.pointerLockElement === canvas;
-      if (this.isPointerLocked) {
-        this.events.emit('lock');
-      } else {
-        this.events.emit('unlock');
-      }
-    });
+      document.addEventListener('pointerlockchange', () => {
+        this.isPointerLocked = document.pointerLockElement === canvas;
+        if (this.isPointerLocked) {
+          this.events.emit('lock');
+        } else {
+          this.events.emit('unlock');
+        }
+      });
+    } else {
+      // On mobile, consider pointer "locked" when touch controls are active
+      // so the game starts in play mode
+      this.isPointerLocked = true;
+      this.events.emit('lock');
+    }
   }
 
   isKeyDown(code) {
