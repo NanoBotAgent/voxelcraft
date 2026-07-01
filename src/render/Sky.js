@@ -8,9 +8,7 @@ export class Sky {
   }
 
   update(time) {
-    // Day/night cycle based on world time fraction
-    // time is in ms from performance.now(), but we use world.time for game time
-    // This is called from render loop with performance.now()
+    // Called from render loop with performance.now() - unused
   }
 
   updateFromWorldTime(worldTime) {
@@ -18,10 +16,10 @@ export class Sky {
     const fraction = worldTime / 24000;
     this.sunAngle = fraction * Math.PI * 2;
 
-    // Calculate sky color based on time
-    const dayColor = new THREE.Color(0x87CEEB);   // day: sky blue
-    const sunsetColor = new THREE.Color(0xFF6B35); // sunset: orange
-    const nightColor = new THREE.Color(0x0A0A2A);  // night: dark blue
+    // Sky colors
+    const dayColor = new THREE.Color(0x87CEEB);    // sky blue
+    const sunsetColor = new THREE.Color(0xFF6B35); // orange
+    const nightColor = new THREE.Color(0x1A1A3E);  // dark blue (not pure black!)
 
     let skyColor;
     if (fraction < 0.25) {
