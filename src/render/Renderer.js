@@ -1,4 +1,4 @@
-// Renderer.js - WebGLRenderer with bright lighting
+// Renderer.js - WebGLRenderer with MeshBasicMaterial (no lighting dependency)
 import * as THREE from 'three';
 import { TextureAtlas } from './TextureAtlas.js';
 import { ChunkMesher } from './ChunkMesher.js';
@@ -27,30 +27,24 @@ export class Renderer {
     // Fog
     this.scene.fog = new THREE.Fog(0x87CEEB, 60, 160);
 
-    // Strong ambient light so blocks are always visible
-    const ambient = new THREE.AmbientLight(0xffffff, 1.2);
-    this.scene.add(ambient);
-
-    // Directional light (sun)
-    this.sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    this.sunLight.position.set(100, 200, 100);
-    this.scene.add(this.sunLight);
-
-    // Hemisphere light
-    const hemi = new THREE.HemisphereLight(0x87CEEB, 0x8B6240, 0.5);
-    this.scene.add(hemi);
-
-    // Chunk mesh group
-    this.chunkGroup = new THREE.Group();
-    this.scene.add(this.chunkGroup);
-
-    // Material for chunks - MeshLambertMaterial with vertexColors
+    // Use MeshBasicMaterial - doesn't need lights, vertex colors control brightness directly
     const tex = textureAtlas ? textureAtlas.toTexture() : null;
-    this.chunkMaterial = new THREE.MeshLambertMaterial({
+    this.chunkMaterial = new THREE.MeshBasicMaterial({
       map: tex,
       vertexColors: true,
       side: THREE.FrontSide,
     });
+
+    // Lights still here for future use / day-night
+    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+    this.scene.add(ambient);
+    this.sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    this.sunLight.position.set(100, 200, 100);
+    this.scene.add(this.sunLight);
+
+    // Chunk mesh group
+    this.chunkGroup = new THREE.Group();
+    this.scene.add(this.chunkGroup);
 
     // Handle resize
     window.addEventListener('resize', () => {
