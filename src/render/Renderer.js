@@ -1,4 +1,4 @@
-// Renderer.js - WebGLRenderer with WebGL1 fallback and MeshBasicMaterial
+// Renderer.js - WebGLRenderer with WebGL1 fallback, proper material for mobile
 import * as THREE from 'three';
 import { TextureAtlas } from './TextureAtlas.js';
 import { ChunkMesher } from './ChunkMesher.js';
@@ -28,18 +28,25 @@ export class Renderer {
     // Fog
     this.scene.fog = new THREE.Fog(0x87CEEB, 60, 160);
 
-    // MeshBasicMaterial - doesn't need lights, vertex colors control brightness directly
+    // Use MeshLambertMaterial with proper lighting — works on all devices
+    // Vertex colors are used for face-direction shading (top=bright, bottom=dark)
     const tex = textureAtlas ? textureAtlas.toTexture() : null;
-    this.chunkMaterial = new THREE.MeshBasicMaterial({
+    this.chunkMaterial = new THREE.MeshLambertMaterial({
       map: tex,
       vertexColors: true,
       side: THREE.FrontSide,
     });
 
-    // Lights for future day/night cycle (MeshBasicMaterial ignores them)
-    const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+    // Strong ambient light so everything is visible even without sun
+    const ambient = new THREE.AmbientLight(0xffffff, 1.5);
     this.scene.add(ambient);
-    this.sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+
+    // Hemisphere light: sky blue from above, warm brown from below
+    const hemi = new THREE.HemisphereLight(0x87CEEB, 0x8B7355, 0.8);
+    this.scene.add(hemi);
+
+    // Directional sun light
+    this.sunLight = new THREE.DirectionalLight(0xffffff, 0.6);
     this.sunLight.position.set(100, 200, 100);
     this.scene.add(this.sunLight);
 
