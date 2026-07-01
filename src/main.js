@@ -22,16 +22,25 @@ async function boot() {
   try {
     setProgress(5, 'Checking browser support...');
 
-    // WebGL2 check
+    // Try WebGL2 first, fall back to WebGL1
     const testCanvas = document.createElement('canvas');
-    const gl = testCanvas.getContext('webgl2');
+    let gl = testCanvas.getContext('webgl2');
+    let isWebGL2 = !!gl;
+
     if (!gl) {
-      showError('WebGL2 is not supported. Please use a modern browser (Chrome 110+, Firefox 110+, Safari 16+).');
+      // Try WebGL1 as fallback
+      gl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
+    }
+
+    if (!gl) {
+      showError('WebGL is not supported. Please use a modern browser (Chrome 110+, Firefox 110+, Safari 16+).');
       return;
     }
 
+    console.log(`WebGL: ${isWebGL2 ? 'WebGL2' : 'WebGL1 (fallback)'} detected`);
+
     setProgress(10, 'Initializing game engine...');
-    const game = new Game();
+    const game = new Game(isWebGL2);
 
     setProgress(25, 'Loading block registry...');
     await game.loadRegistries();
