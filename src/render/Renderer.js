@@ -1,10 +1,10 @@
-// Renderer.js - WebGLRenderer with MeshBasicMaterial (no lighting dependency)
+// Renderer.js - WebGLRenderer with WebGL1 fallback and MeshBasicMaterial
 import * as THREE from 'three';
 import { TextureAtlas } from './TextureAtlas.js';
 import { ChunkMesher } from './ChunkMesher.js';
 
 export class Renderer {
-  constructor(container, textureAtlas) {
+  constructor(container, textureAtlas, isWebGL2 = true) {
     this.container = container;
     this.textureAtlas = textureAtlas;
     this.scene = new THREE.Scene();
@@ -14,10 +14,11 @@ export class Renderer {
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.camera.position.set(0, 80, 0);
 
-    // Renderer
+    // Renderer - use WebGL1 if WebGL2 not available
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
       powerPreference: 'high-performance',
+      forceWebGL1: !isWebGL2,
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -27,7 +28,7 @@ export class Renderer {
     // Fog
     this.scene.fog = new THREE.Fog(0x87CEEB, 60, 160);
 
-    // Use MeshBasicMaterial - doesn't need lights, vertex colors control brightness directly
+    // MeshBasicMaterial - doesn't need lights, vertex colors control brightness directly
     const tex = textureAtlas ? textureAtlas.toTexture() : null;
     this.chunkMaterial = new THREE.MeshBasicMaterial({
       map: tex,
@@ -35,7 +36,7 @@ export class Renderer {
       side: THREE.FrontSide,
     });
 
-    // Lights still here for future use / day-night
+    // Lights for future day/night cycle (MeshBasicMaterial ignores them)
     const ambient = new THREE.AmbientLight(0xffffff, 1.0);
     this.scene.add(ambient);
     this.sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
