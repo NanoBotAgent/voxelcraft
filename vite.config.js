@@ -12,7 +12,6 @@ export default defineConfig({
         manualChunks: {
           'three': ['three'],
           'noise': ['simplex-noise'],
-          'db': ['idb'],
           'compression': ['pako'],
         },
       },
@@ -28,7 +27,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['three', 'simplex-noise', 'idb', 'pako'],
+    include: ['three', 'simplex-noise', 'pako'],
   },
   define: {
     __VERSION__: JSON.stringify('0.1.0'),
