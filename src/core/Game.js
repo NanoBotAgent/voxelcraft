@@ -63,7 +63,19 @@ export class Game {
     this.player = new Player(this);
     this.playerController = new PlayerController(this.player, this.input);
     this.ui = new UIManager(this);
+  }
+
+  initAudio() {
     this.audio = new AudioManager();
+    // Audio context needs user gesture to start; init on first click
+    const initAudio = async () => {
+      await this.audio.init();
+      this.audio.resume();
+      document.removeEventListener('click', initAudio);
+      document.removeEventListener('keydown', initAudio);
+    };
+    document.addEventListener('click', initAudio);
+    document.addEventListener('keydown', initAudio);
   }
 
   start() {
