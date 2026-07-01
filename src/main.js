@@ -17,7 +17,7 @@ function showError(msg) {
 
 async function boot() {
   try {
-    setProgress(10, 'Checking browser support...');
+    setProgress(5, 'Checking browser support...');
 
     // WebGL2 check
     const testCanvas = document.createElement('canvas');
@@ -27,20 +27,28 @@ async function boot() {
       return;
     }
 
-    setProgress(20, 'Initializing game engine...');
+    setProgress(10, 'Initializing game engine...');
     const game = new Game();
 
-    setProgress(40, 'Loading block registry...');
+    setProgress(25, 'Loading block registry...');
     await game.loadRegistries();
 
-    setProgress(60, 'Generating textures...');
+    setProgress(40, 'Generating textures...');
     await game.generateTextures();
 
-    setProgress(80, 'Initializing renderer...');
+    setProgress(60, 'Initializing renderer...');
     await game.initRenderer();
 
-    setProgress(90, 'Setting up input...');
+    setProgress(75, 'Setting up input & player...');
     game.initInput();
+
+    setProgress(85, 'Initializing audio...');
+    game.initAudio();
+
+    setProgress(90, 'Creating world...');
+    // Generate a random seed for the world
+    const seed = Math.floor(Math.random() * 2147483647);
+    game.createWorld('World', seed, 'survival', 'normal');
 
     setProgress(100, 'Ready!');
 
