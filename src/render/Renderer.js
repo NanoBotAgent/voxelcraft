@@ -1,4 +1,4 @@
-// Renderer.js - WebGLRenderer setup, fog, postprocess
+// Renderer.js - WebGLRenderer with bright lighting
 import * as THREE from 'three';
 import { TextureAtlas } from './TextureAtlas.js';
 import { ChunkMesher } from './ChunkMesher.js';
@@ -8,7 +8,7 @@ export class Renderer {
     this.container = container;
     this.textureAtlas = textureAtlas;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB); // sky blue immediately
+    this.scene.background = new THREE.Color(0x87CEEB);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -21,15 +21,14 @@ export class Renderer {
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0x87CEEB); // sky blue immediately
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.setClearColor(0x87CEEB);
     container.appendChild(this.renderer.domElement);
 
-    // Fog - start with reasonable distance
+    // Fog
     this.scene.fog = new THREE.Fog(0x87CEEB, 60, 160);
 
-    // Ambient light - boost for visibility
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+    // Strong ambient light so blocks are always visible
+    const ambient = new THREE.AmbientLight(0xffffff, 1.2);
     this.scene.add(ambient);
 
     // Directional light (sun)
@@ -38,14 +37,14 @@ export class Renderer {
     this.scene.add(this.sunLight);
 
     // Hemisphere light
-    const hemi = new THREE.HemisphereLight(0x87CEEB, 0x8B6240, 0.4);
+    const hemi = new THREE.HemisphereLight(0x87CEEB, 0x8B6240, 0.5);
     this.scene.add(hemi);
 
     // Chunk mesh group
     this.chunkGroup = new THREE.Group();
     this.scene.add(this.chunkGroup);
 
-    // Material for chunks - ensure texture is applied
+    // Material for chunks - MeshLambertMaterial with vertexColors
     const tex = textureAtlas ? textureAtlas.toTexture() : null;
     this.chunkMaterial = new THREE.MeshLambertMaterial({
       map: tex,
@@ -78,14 +77,12 @@ export class Renderer {
 
     for (const [key, chunk] of world.chunks) {
       if (chunk.meshDirty && chunk.status === 'generated' && meshed < maxPerFrame) {
-        // Remove old mesh
         if (chunk.mesh) {
           this.chunkGroup.remove(chunk.mesh);
           chunk.mesh.geometry.dispose();
           chunk.mesh = null;
         }
 
-        // Build new mesh
         const geometry = this.mesher.buildMesh(chunk, world);
         if (geometry) {
           const mesh = new THREE.Mesh(geometry, this.chunkMaterial);
