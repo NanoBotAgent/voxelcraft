@@ -1,4 +1,4 @@
-// Game.js - Main game orchestrator (WebGL1 fallback, no double physics, proper spawn)
+// Game.js - Main game orchestrator (WebGL1 fallback, mobile touch support)
 import { World } from './World.js';
 import { BlockRegistry } from './BlockRegistry.js';
 import { ItemRegistry } from './ItemRegistry.js';
@@ -15,6 +15,7 @@ import { InputManager } from '../input/InputManager.js';
 import { UIManager } from '../ui/UIManager.js';
 import { AudioManager } from '../audio/AudioManager.js';
 import { TextureAtlas } from '../render/TextureAtlas.js';
+import { TouchControls } from '../input/TouchControls.js';
 
 export class Game {
   constructor(isWebGL2 = true) {
@@ -28,6 +29,7 @@ export class Game {
     this.ui = null;
     this.audio = null;
     this.blockInteraction = null;
+    this.touchControls = null;
     this.scheduler = new Scheduler();
     this.events = new EventBus();
     this.storage = new Storage();
@@ -68,6 +70,9 @@ export class Game {
     this.blockInteraction = new BlockInteraction(this);
     this.ui = new UIManager(this);
 
+    // Initialize touch controls on mobile
+    this.touchControls = new TouchControls(this);
+
     this.input.on('keydown', (e) => {
       if (e.code === 'F5') {
         e.preventDefault();
@@ -87,9 +92,11 @@ export class Game {
       }
       document.removeEventListener('click', initAudio);
       document.removeEventListener('keydown', initAudio);
+      document.removeEventListener('touchstart', initAudio);
     };
     document.addEventListener('click', initAudio);
     document.addEventListener('keydown', initAudio);
+    document.addEventListener('touchstart', initAudio);
   }
 
   start() {
