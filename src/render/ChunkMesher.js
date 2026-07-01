@@ -1,14 +1,14 @@
-// ChunkMesher.js - Simplified greedy meshing (correct implementation)
+// ChunkMesher.js - Per-face meshing with proper lighting
 import * as THREE from 'three';
 import { CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_MIN_Y } from '../core/Chunk.js';
 
 const FACES = [
-  { dir: [0, 1, 0], name: 'top', corners: [[0,1,1],[1,1,1],[1,1,0],[0,1,0]] },
-  { dir: [0, -1, 0], name: 'bottom', corners: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]] },
-  { dir: [1, 0, 0], name: 'right', corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]] },
-  { dir: [-1, 0, 0], name: 'left', corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]] },
-  { dir: [0, 0, 1], name: 'front', corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]] },
-  { dir: [0, 0, -1], name: 'back', corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]] },
+  { dir: [0, 1, 0], name: 'top', corners: [[0,1,1],[1,1,1],[1,1,0],[0,1,0]], shade: 1.0 },
+  { dir: [0, -1, 0], name: 'bottom', corners: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]], shade: 0.5 },
+  { dir: [1, 0, 0], name: 'right', corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]], shade: 0.8 },
+  { dir: [-1, 0, 0], name: 'left', corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]], shade: 0.8 },
+  { dir: [0, 0, 1], name: 'front', corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]], shade: 0.7 },
+  { dir: [0, 0, -1], name: 'back', corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], shade: 0.7 },
 ];
 
 export class ChunkMesher {
@@ -24,12 +24,11 @@ export class ChunkMesher {
     const indices = [];
     let vertexCount = 0;
 
-    // Simple per-face meshing (not greedy - more reliable for MVP)
     for (let y = CHUNK_MIN_Y; y < CHUNK_HEIGHT + CHUNK_MIN_Y; y++) {
       for (let z = 0; z < CHUNK_SIZE; z++) {
         for (let x = 0; x < CHUNK_SIZE; x++) {
           const block = chunk.getBlock(x, y, z);
-          if (block.id === 0) continue; // air
+          if (block.id === 0) continue;
 
           for (const face of FACES) {
             const [nx, ny, nz] = face.dir;
@@ -37,7 +36,6 @@ export class ChunkMesher {
             const adjY = y + ny;
             const adjZ = z + nz;
 
-            // Get adjacent block
             let adjId = 0;
             if (adjX >= 0 && adjX < CHUNK_SIZE && adjY >= CHUNK_MIN_Y && adjY < CHUNK_HEIGHT + CHUNK_MIN_Y && adjZ >= 0 && adjZ < CHUNK_SIZE) {
               adjId = chunk.getBlock(adjX, adjY, adjZ).id;
@@ -91,26 +89,12 @@ export class ChunkMesher {
 
     const uv = this.textureAtlas ? this.textureAtlas.getUV(texName) : { u0: 0, v0: 0, u1: 1, v1: 1 };
 
-    // Get light level
-    const lx = Math.max(0, Math.min(CHUNK_SIZE - 1, x));
-    const ly = Math.max(CHUNK_MIN_Y, Math.min(CHUNK_HEIGHT + CHUNK_MIN_Y - 1, y));
-    const lz = Math.max(0, Math.min(CHUNK_SIZE - 1, z));
-    const skyLight = chunk.getSkyLight(lx, ly, lz) / 15;
-    const blockLight = chunk.getBlockLight(lx, ly, lz) / 15;
-    const light = Math.max(skyLight, blockLight);
-    const brightness = 0.3 + light * 0.7;
+    // Simple brightness: face shade * ambient
+    // No vertex color darkening from sky light - just use face direction shading
+    const brightness = face.shade;
 
-    // Face direction shading
     const [nx, ny, nz] = face.dir;
-    let faceShade = 1.0;
-    if (ny > 0) faceShade = 1.0;       // top = full
-    else if (ny < 0) faceShade = 0.5;  // bottom = dark
-    else if (nx !== 0) faceShade = 0.8; // sides
-    else faceShade = 0.7;               // front/back
 
-    const finalBrightness = brightness * faceShade;
-
-    // Emit 4 vertices
     for (const corner of face.corners) {
       const px = x + corner[0];
       const py = y + corner[1];
@@ -118,11 +102,12 @@ export class ChunkMesher {
       positions.push(px, py, pz);
       normals.push(nx, ny, nz);
 
+      // UV mapping: use corner x/z for u, corner y for v
       const cu = corner[0] === 0 ? uv.u0 : uv.u1;
       const cv = corner[2] === 0 ? uv.v0 : uv.v1;
       uvs.push(cu, cv);
 
-      colors.push(finalBrightness, finalBrightness, finalBrightness);
+      colors.push(brightness, brightness, brightness);
     }
 
     indices.push(vertexCount, vertexCount + 1, vertexCount + 2);
