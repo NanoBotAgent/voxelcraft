@@ -1,4 +1,4 @@
-// VoxelCraft - Main Entry Point
+// main.js - VoxelCraft entry point with robust error handling
 import { Game } from './core/Game.js';
 
 const progressFill = document.getElementById('progress-fill');
@@ -6,13 +6,16 @@ const loadingStatus = document.getElementById('loading-status');
 const loadingError = document.getElementById('loading-error');
 
 function setProgress(pct, msg) {
-  progressFill.style.width = pct + '%';
-  loadingStatus.textContent = msg;
+  if (progressFill) progressFill.style.width = pct + '%';
+  if (loadingStatus) loadingStatus.textContent = msg;
 }
 
 function showError(msg) {
-  loadingError.textContent = msg;
-  loadingError.style.display = 'block';
+  if (loadingError) {
+    loadingError.textContent = msg;
+    loadingError.style.display = 'block';
+  }
+  console.error('VoxelCraft:', msg);
 }
 
 async function boot() {
@@ -46,21 +49,22 @@ async function boot() {
     game.initAudio();
 
     setProgress(90, 'Creating world...');
-    // Generate a random seed for the world
     const seed = Math.floor(Math.random() * 2147483647);
     game.createWorld('World', seed, 'survival', 'normal');
 
-    setProgress(100, 'Ready!');
+    setProgress(100, 'Ready! Click to play');
 
     // Hide loading, show game
     setTimeout(() => {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
+      const loading = document.getElementById('loading');
+      const app = document.getElementById('app');
+      if (loading) loading.style.display = 'none';
+      if (app) app.style.display = 'block';
       game.start();
     }, 300);
   } catch (err) {
     console.error('Boot failed:', err);
-    showError('Failed to start: ' + err.message);
+    showError('Failed to start: ' + err.message + '\n' + err.stack);
   }
 }
 
