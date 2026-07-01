@@ -1,14 +1,14 @@
-// ChunkMesher.js - Per-face meshing with proper lighting
+// ChunkMesher.js - Per-face meshing with bright vertex colors for MeshBasicMaterial
 import * as THREE from 'three';
 import { CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_MIN_Y } from '../core/Chunk.js';
 
 const FACES = [
   { dir: [0, 1, 0], name: 'top', corners: [[0,1,1],[1,1,1],[1,1,0],[0,1,0]], shade: 1.0 },
-  { dir: [0, -1, 0], name: 'bottom', corners: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]], shade: 0.5 },
-  { dir: [1, 0, 0], name: 'right', corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]], shade: 0.8 },
-  { dir: [-1, 0, 0], name: 'left', corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]], shade: 0.8 },
-  { dir: [0, 0, 1], name: 'front', corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]], shade: 0.7 },
-  { dir: [0, 0, -1], name: 'back', corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], shade: 0.7 },
+  { dir: [0, -1, 0], name: 'bottom', corners: [[0,0,0],[1,0,0],[1,0,1],[0,0,1]], shade: 0.6 },
+  { dir: [1, 0, 0], name: 'right', corners: [[1,0,0],[1,1,0],[1,1,1],[1,0,1]], shade: 0.85 },
+  { dir: [-1, 0, 0], name: 'left', corners: [[0,0,1],[0,1,1],[0,1,0],[0,0,0]], shade: 0.85 },
+  { dir: [0, 0, 1], name: 'front', corners: [[1,0,1],[1,1,1],[0,1,1],[0,0,1]], shade: 0.75 },
+  { dir: [0, 0, -1], name: 'back', corners: [[0,0,0],[0,1,0],[1,1,0],[1,0,0]], shade: 0.75 },
 ];
 
 export class ChunkMesher {
@@ -89,9 +89,9 @@ export class ChunkMesher {
 
     const uv = this.textureAtlas ? this.textureAtlas.getUV(texName) : { u0: 0, v0: 0, u1: 1, v1: 1 };
 
-    // Simple brightness: face shade * ambient
-    // No vertex color darkening from sky light - just use face direction shading
-    const brightness = face.shade;
+    // Brightness: face direction shading (MeshBasicMaterial uses vertex colors directly)
+    // Boost minimum so nothing is too dark
+    const brightness = Math.max(0.6, face.shade);
 
     const [nx, ny, nz] = face.dir;
 
@@ -102,7 +102,7 @@ export class ChunkMesher {
       positions.push(px, py, pz);
       normals.push(nx, ny, nz);
 
-      // UV mapping: use corner x/z for u, corner y for v
+      // UV: use corner position to pick u0/u1 and v0/v1
       const cu = corner[0] === 0 ? uv.u0 : uv.u1;
       const cv = corner[2] === 0 ? uv.v0 : uv.v1;
       uvs.push(cu, cv);
