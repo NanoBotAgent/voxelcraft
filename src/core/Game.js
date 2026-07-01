@@ -1,4 +1,4 @@
-// Game.js - Main game orchestrator (fixed: no double physics, proper spawn)
+// Game.js - Main game orchestrator (WebGL1 fallback, no double physics, proper spawn)
 import { World } from './World.js';
 import { BlockRegistry } from './BlockRegistry.js';
 import { ItemRegistry } from './ItemRegistry.js';
@@ -17,7 +17,8 @@ import { AudioManager } from '../audio/AudioManager.js';
 import { TextureAtlas } from '../render/TextureAtlas.js';
 
 export class Game {
-  constructor() {
+  constructor(isWebGL2 = true) {
+    this.isWebGL2 = isWebGL2;
     this.world = null;
     this.player = null;
     this.renderer = null;
@@ -55,7 +56,7 @@ export class Game {
   async initRenderer() {
     const app = document.getElementById('app');
     if (!app) throw new Error('app element not found');
-    this.renderer = new Renderer(app, this.textureAtlas);
+    this.renderer = new Renderer(app, this.textureAtlas, this.isWebGL2);
     this.camera = new Camera(this.renderer.getCamera());
     this.sky = new Sky(this.renderer.getScene());
   }
@@ -106,7 +107,7 @@ export class Game {
   loop(now) {
     if (!this.running) return;
 
-    const delta = Math.min(now - this.lastTime, 200); // cap at 200ms
+    const delta = Math.min(now - this.lastTime, 200);
     this.lastTime = now;
 
     this.frameCount++;
@@ -117,7 +118,6 @@ export class Game {
       this.fpsTimer = 0;
     }
 
-    // Fixed timestep simulation (20 TPS)
     this.simAccumulator += delta;
     const maxAccum = this.SIM_TICK_MS * 5;
     if (this.simAccumulator > maxAccum) this.simAccumulator = maxAccum;
@@ -140,7 +140,6 @@ export class Game {
     if (this.playerController) this.playerController.tick(dt);
     if (this.blockInteraction) this.blockInteraction.update(dt);
 
-    // Incremental chunk loading around player
     if (this.world && this.player) {
       this.world.updateChunks(this.player.position.x, this.player.position.z);
     }
