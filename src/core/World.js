@@ -21,7 +21,7 @@ export class World {
     this.noiseGen = new NoiseGenerator(seed);
     this.biomeProvider = new BiomeProvider(this.noiseGen);
     this.worldGen = new WorldGenerator(this.noiseGen, this.biomeProvider, game.blockRegistry);
-    this.renderDistance = 12;
+    this.renderDistance = 8; // reduced from 12 for performance
     this.entities = [];
   }
 
@@ -116,20 +116,24 @@ export class World {
     this.spawnPoint.y = this.getHeight(this.spawnPoint.x, this.spawnPoint.z) + 1;
   }
 
-  // Update chunks around player
+  // Update chunks around player - incremental loading
   updateChunks(playerX, playerZ) {
     const pcx = Math.floor(playerX / CHUNK_SIZE);
     const pcz = Math.floor(playerZ / CHUNK_SIZE);
     const rd = this.renderDistance;
 
-    // Load new chunks
-    for (let dx = -rd; dx <= rd; dx++) {
-      for (let dz = -rd; dz <= rd; dz++) {
+    // Load new chunks (limit per frame to avoid freezing)
+    let loaded = 0;
+    const maxLoadPerFrame = 2;
+
+    for (let dx = -rd; dx <= rd && loaded < maxLoadPerFrame; dx++) {
+      for (let dz = -rd; dz <= rd && loaded < maxLoadPerFrame; dz++) {
         const cx = pcx + dx;
         const cz = pcz + dz;
         if (!this.getChunk(cx, cz)) {
           const chunk = this.worldGen.generateChunk(cx, cz, this.dimension);
           this.setChunk(cx, cz, chunk);
+          loaded++;
         }
       }
     }
