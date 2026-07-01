@@ -1,4 +1,4 @@
-// Game.js - Main game orchestrator
+// Game.js - Main game orchestrator (fixed: no double physics, proper spawn)
 import { World } from './World.js';
 import { BlockRegistry } from './BlockRegistry.js';
 import { ItemRegistry } from './ItemRegistry.js';
@@ -15,7 +15,6 @@ import { InputManager } from '../input/InputManager.js';
 import { UIManager } from '../ui/UIManager.js';
 import { AudioManager } from '../audio/AudioManager.js';
 import { TextureAtlas } from '../render/TextureAtlas.js';
-import { ChunkMesher } from '../render/ChunkMesher.js';
 
 export class Game {
   constructor() {
@@ -41,7 +40,6 @@ export class Game {
     this.fps = 0;
     this.frameCount = 0;
     this.fpsTimer = 0;
-    this.spawnReady = false;
   }
 
   async loadRegistries() {
@@ -56,6 +54,7 @@ export class Game {
 
   async initRenderer() {
     const app = document.getElementById('app');
+    if (!app) throw new Error('app element not found');
     this.renderer = new Renderer(app, this.textureAtlas);
     this.camera = new Camera(this.renderer.getCamera());
     this.sky = new Sky(this.renderer.getScene());
@@ -68,7 +67,6 @@ export class Game {
     this.blockInteraction = new BlockInteraction(this);
     this.ui = new UIManager(this);
 
-    // F5 camera toggle
     this.input.on('keydown', (e) => {
       if (e.code === 'F5') {
         e.preventDefault();
@@ -80,8 +78,12 @@ export class Game {
   initAudio() {
     this.audio = new AudioManager();
     const initAudio = async () => {
-      await this.audio.init();
-      this.audio.resume();
+      try {
+        await this.audio.init();
+        this.audio.resume();
+      } catch (e) {
+        console.warn('Audio init failed:', e);
+      }
       document.removeEventListener('click', initAudio);
       document.removeEventListener('keydown', initAudio);
     };
@@ -93,10 +95,6 @@ export class Game {
     this.running = true;
     this.lastTime = performance.now();
     this.events.emit('game:start');
-
-    // Create world and start async chunk loading
-    this.createWorld('World', Math.floor(Math.random() * 2147483647), 'survival', 'normal');
-
     requestAnimationFrame((t) => this.loop(t));
   }
 
@@ -108,10 +106,9 @@ export class Game {
   loop(now) {
     if (!this.running) return;
 
-    const delta = now - this.lastTime;
+    const delta = Math.min(now - this.lastTime, 200); // cap at 200ms
     this.lastTime = now;
 
-    // FPS counter
     this.frameCount++;
     this.fpsTimer += delta;
     if (this.fpsTimer >= 1000) {
@@ -143,51 +140,9 @@ export class Game {
     if (this.playerController) this.playerController.tick(dt);
     if (this.blockInteraction) this.blockInteraction.update(dt);
 
-    // Update chunks around player incrementally
+    // Incremental chunk loading around player
     if (this.world && this.player) {
       this.world.updateChunks(this.player.position.x, this.player.position.z);
-
-      // Simple gravity + collision
-      this.applyPhysics(dt);
-    }
-  }
-
-  applyPhysics(dt) {
-    if (!this.world || !this.player) return;
-    const p = this.player;
-    const GRAVITY = 24.0; // blocks/s^2
-
-    if (!p.isFlying) {
-      p.velocity.y -= GRAVITY * dt;
-    }
-
-    // Move player
-    p.position.x += p.velocity.x * dt;
-    p.position.y += p.velocity.y * dt;
-    p.position.z += p.velocity.z * dt;
-
-    // Simple ground collision
-    const feetY = Math.floor(p.position.y);
-    const px = Math.floor(p.position.x);
-    const pz = Math.floor(p.position.z);
-    const blockBelow = this.world.getBlock(px, feetY, pz);
-
-    if (blockBelow.id !== 0 && !this.world.game.blockRegistry.isLiquid(blockBelow.id)) {
-      // Snap to top of block
-      if (p.position.y < feetY + 1 && p.velocity.y <= 0) {
-        p.position.y = feetY + 1;
-        p.velocity.y = 0;
-        p.onGround = true;
-      }
-    } else {
-      p.onGround = false;
-    }
-
-    // Prevent falling through bedrock
-    if (p.position.y < -60) {
-      p.position.y = -60;
-      p.velocity.y = 0;
-      p.onGround = true;
     }
   }
 
@@ -204,15 +159,9 @@ export class Game {
 
   createWorld(name, seed, gamemode, difficulty) {
     this.world = new World(this, name, seed, gamemode, difficulty);
-    // Generate only the immediate spawn chunks (3x3) synchronously
     this.world.generateSpawnArea();
-    // Player starts at spawn, chunks will load incrementally
-    this.player.spawn(this.world);
+    if (this.player) this.player.spawn(this.world);
     this.events.emit('world:create', { name, seed });
-  }
-
-  loadWorld(id) {
-    // TODO: load from IndexedDB
   }
 
   saveWorld() {
