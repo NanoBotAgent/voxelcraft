@@ -90,21 +90,22 @@ export class ChunkMesher {
     const uv = this.textureAtlas ? this.textureAtlas.getUV(texName) : { u0: 0, v0: 0, u1: 1, v1: 1 };
 
     // Brightness: face direction shading (MeshBasicMaterial uses vertex colors directly)
-    // Boost minimum so nothing is too dark
     const brightness = Math.max(0.6, face.shade);
 
     const [nx, ny, nz] = face.dir;
 
-    for (const corner of face.corners) {
+    for (let i = 0; i < 4; i++) {
+      const corner = face.corners[i];
       const px = x + corner[0];
       const py = y + corner[1];
       const pz = z + corner[2];
       positions.push(px, py, pz);
       normals.push(nx, ny, nz);
 
-      // UV: use corner position to pick u0/u1 and v0/v1
-      const cu = corner[0] === 0 ? uv.u0 : uv.u1;
-      const cv = corner[2] === 0 ? uv.v0 : uv.v1;
+      // UV: map 4 corners to the 4 UV corners of the tile
+      // corners[0]=bottom-left, corners[1]=top-left, corners[2]=top-right, corners[3]=bottom-right
+      const cu = (i === 0 || i === 3) ? uv.u0 : uv.u1;
+      const cv = (i === 0 || i === 1) ? uv.v1 : uv.v0;
       uvs.push(cu, cv);
 
       colors.push(brightness, brightness, brightness);
