@@ -1,6 +1,5 @@
 // World.js - World manager (chunks, dimensions)
-import { Chunk, CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_MIN_Y } from './Chunk.js';
-import { BlockRegistry } from './BlockRegistry.js';
+import { Chunk, CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_MIN_Y, SEA_LEVEL } from './Chunk.js';
 import { NoiseGenerator } from '../worldgen/NoiseGenerator.js';
 import { BiomeProvider } from '../worldgen/BiomeProvider.js';
 import { WorldGenerator } from '../worldgen/WorldGenerator.js';
@@ -12,16 +11,16 @@ export class World {
     this.seed = seed;
     this.gamemode = gamemode;
     this.difficulty = difficulty;
-    this.chunks = new Map(); // key: "cx,cz" -> Chunk
+    this.chunks = new Map();
     this.dimension = 'overworld';
-    this.time = 0; // game ticks (0-24000)
+    this.time = 6000; // start at morning (6000 = noon-ish)
     this.weather = 'clear';
     this.weatherTimer = 0;
     this.spawnPoint = { x: 0, y: 80, z: 0 };
     this.noiseGen = new NoiseGenerator(seed);
     this.biomeProvider = new BiomeProvider(this.noiseGen);
     this.worldGen = new WorldGenerator(this.noiseGen, this.biomeProvider, game.blockRegistry);
-    this.renderDistance = 8; // reduced from 12 for performance
+    this.renderDistance = 6; // start smaller for faster initial load
     this.entities = [];
   }
 
@@ -47,7 +46,6 @@ export class World {
     this.chunks.delete(key);
   }
 
-  // Get block at world coordinates
   getBlock(x, y, z) {
     const cx = Math.floor(x / CHUNK_SIZE);
     const cz = Math.floor(z / CHUNK_SIZE);
@@ -58,7 +56,6 @@ export class World {
     return chunk.getBlock(lx, y, lz);
   }
 
-  // Set block at world coordinates
   setBlock(x, y, z, id, state = 0) {
     const cx = Math.floor(x / CHUNK_SIZE);
     const cz = Math.floor(z / CHUNK_SIZE);
@@ -68,7 +65,6 @@ export class World {
     const lz = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     chunk.setBlock(lx, y, lz, id, state);
 
-    // Mark neighbor chunks dirty if on edge
     if (lx === 0) this.markChunkDirty(cx - 1, cz);
     if (lx === CHUNK_SIZE - 1) this.markChunkDirty(cx + 1, cz);
     if (lz === 0) this.markChunkDirty(cx, cz - 1);
@@ -80,29 +76,27 @@ export class World {
     if (chunk) chunk.meshDirty = true;
   }
 
-  // Get highest non-air block at (x, z)
   getHeight(x, z) {
     const cx = Math.floor(x / CHUNK_SIZE);
     const cz = Math.floor(z / CHUNK_SIZE);
     const chunk = this.getChunk(cx, cz);
-    if (!chunk) return CHUNK_MIN_Y;
+    if (!chunk) return SEA_LEVEL;
     const lx = ((x % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     const lz = ((z % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     for (let y = CHUNK_HEIGHT - 1 + CHUNK_MIN_Y; y >= CHUNK_MIN_Y; y--) {
       const block = chunk.getBlock(lx, y, lz);
       if (block.id !== 0) return y;
     }
-    return CHUNK_MIN_Y;
+    return SEA_LEVEL;
   }
 
-  // Generate spawn area
-  generateSpawn() {
-    const rd = this.renderDistance;
+  // Generate only a small 3x3 area for initial spawn
+  generateSpawnArea() {
     const pcx = Math.floor(this.spawnPoint.x / CHUNK_SIZE);
     const pcz = Math.floor(this.spawnPoint.z / CHUNK_SIZE);
 
-    for (let dx = -rd; dx <= rd; dx++) {
-      for (let dz = -rd; dz <= rd; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
         const cx = pcx + dx;
         const cz = pcz + dz;
         if (!this.getChunk(cx, cz)) {
@@ -112,28 +106,30 @@ export class World {
       }
     }
 
-    // Find actual spawn height
-    this.spawnPoint.y = this.getHeight(this.spawnPoint.x, this.spawnPoint.z) + 1;
+    this.spawnPoint.y = this.getHeight(this.spawnPoint.x, this.spawnPoint.z) + 2;
   }
 
-  // Update chunks around player - incremental loading
+  // Incremental chunk loading around player
   updateChunks(playerX, playerZ) {
     const pcx = Math.floor(playerX / CHUNK_SIZE);
     const pcz = Math.floor(playerZ / CHUNK_SIZE);
     const rd = this.renderDistance;
 
-    // Load new chunks (limit per frame to avoid freezing)
     let loaded = 0;
     const maxLoadPerFrame = 2;
 
-    for (let dx = -rd; dx <= rd && loaded < maxLoadPerFrame; dx++) {
-      for (let dz = -rd; dz <= rd && loaded < maxLoadPerFrame; dz++) {
-        const cx = pcx + dx;
-        const cz = pcz + dz;
-        if (!this.getChunk(cx, cz)) {
-          const chunk = this.worldGen.generateChunk(cx, cz, this.dimension);
-          this.setChunk(cx, cz, chunk);
-          loaded++;
+    // Spiral outward from player for better loading order
+    for (let ring = 0; ring <= rd && loaded < maxLoadPerFrame; ring++) {
+      for (let dx = -ring; dx <= ring && loaded < maxLoadPerFrame; dx++) {
+        for (let dz = -ring; dz <= ring && loaded < maxLoadPerFrame; dz++) {
+          if (Math.abs(dx) !== ring && Math.abs(dz) !== ring) continue; // only ring edge
+          const cx = pcx + dx;
+          const cz = pcz + dz;
+          if (!this.getChunk(cx, cz)) {
+            const chunk = this.worldGen.generateChunk(cx, cz, this.dimension);
+            this.setChunk(cx, cz, chunk);
+            loaded++;
+          }
         }
       }
     }
@@ -149,18 +145,17 @@ export class World {
   }
 
   tick(dt) {
-    this.time += dt * 20; // 20 TPS
+    this.time += dt * 20;
     if (this.time >= 24000) this.time -= 24000;
 
-    // Weather
     this.weatherTimer -= dt;
     if (this.weatherTimer <= 0) {
       if (this.weather === 'clear') {
         this.weather = Math.random() < 0.2 ? 'rain' : 'clear';
-        this.weatherTimer = 120 + Math.random() * 360; // 6-24 min
+        this.weatherTimer = 120 + Math.random() * 360;
       } else {
         this.weather = 'clear';
-        this.weatherTimer = 60 + Math.random() * 300; // 3-18 min
+        this.weatherTimer = 60 + Math.random() * 300;
       }
     }
   }
