@@ -10,6 +10,7 @@ import { Camera } from '../render/Camera.js';
 import { Sky } from '../render/Sky.js';
 import { Player } from '../player/Player.js';
 import { PlayerController } from '../player/PlayerController.js';
+import { BlockInteraction } from '../player/BlockInteraction.js';
 import { InputManager } from '../input/InputManager.js';
 import { UIManager } from '../ui/UIManager.js';
 import { AudioManager } from '../audio/AudioManager.js';
@@ -26,6 +27,7 @@ export class Game {
     this.input = null;
     this.ui = null;
     this.audio = null;
+    this.blockInteraction = null;
     this.scheduler = new Scheduler();
     this.events = new EventBus();
     this.storage = new Storage();
@@ -62,7 +64,16 @@ export class Game {
     this.input = new InputManager(this.renderer.getCanvas());
     this.player = new Player(this);
     this.playerController = new PlayerController(this.player, this.input);
+    this.blockInteraction = new BlockInteraction(this);
     this.ui = new UIManager(this);
+
+    // F5 camera toggle
+    this.input.on('keydown', (e) => {
+      if (e.code === 'F5') {
+        e.preventDefault();
+        this.camera.toggleCamera();
+      }
+    });
   }
 
   initAudio() {
@@ -126,6 +137,7 @@ export class Game {
     if (this.world) this.world.tick(dt);
     if (this.player) this.player.tick(dt);
     if (this.playerController) this.playerController.tick(dt);
+    if (this.blockInteraction) this.blockInteraction.update(dt);
     // Update chunks around player
     if (this.world && this.player) {
       this.world.updateChunks(this.player.position.x, this.player.position.z);
