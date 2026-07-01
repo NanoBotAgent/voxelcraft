@@ -8,7 +8,7 @@ export class Renderer {
     this.container = container;
     this.textureAtlas = textureAtlas;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB); // sky blue
+    this.scene.background = new THREE.Color(0x87CEEB); // sky blue immediately
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -20,33 +20,35 @@ export class Renderer {
       powerPreference: 'high-performance',
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // cap at 2x for perf
-    this.renderer.setClearColor(0x87CEEB);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setClearColor(0x87CEEB); // sky blue immediately
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
 
-    // Fog
-    this.scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+    // Fog - start with reasonable distance
+    this.scene.fog = new THREE.Fog(0x87CEEB, 60, 160);
 
-    // Ambient light
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    // Ambient light - boost for visibility
+    const ambient = new THREE.AmbientLight(0xffffff, 0.8);
     this.scene.add(ambient);
 
     // Directional light (sun)
-    this.sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    this.sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
     this.sunLight.position.set(100, 200, 100);
     this.scene.add(this.sunLight);
 
     // Hemisphere light
-    const hemi = new THREE.HemisphereLight(0x87CEEB, 0x8B6240, 0.3);
+    const hemi = new THREE.HemisphereLight(0x87CEEB, 0x8B6240, 0.4);
     this.scene.add(hemi);
 
     // Chunk mesh group
     this.chunkGroup = new THREE.Group();
     this.scene.add(this.chunkGroup);
 
-    // Material for chunks
+    // Material for chunks - ensure texture is applied
+    const tex = textureAtlas ? textureAtlas.toTexture() : null;
     this.chunkMaterial = new THREE.MeshLambertMaterial({
-      map: textureAtlas ? textureAtlas.toTexture() : null,
+      map: tex,
       vertexColors: true,
       side: THREE.FrontSide,
     });
@@ -72,7 +74,7 @@ export class Renderer {
 
   updateChunkMeshes(world) {
     let meshed = 0;
-    const maxPerFrame = 4; // increased from 3 since greedy meshing is faster
+    const maxPerFrame = 4;
 
     for (const [key, chunk] of world.chunks) {
       if (chunk.meshDirty && chunk.status === 'generated' && meshed < maxPerFrame) {
@@ -83,7 +85,7 @@ export class Renderer {
           chunk.mesh = null;
         }
 
-        // Build new mesh with greedy mesher
+        // Build new mesh
         const geometry = this.mesher.buildMesh(chunk, world);
         if (geometry) {
           const mesh = new THREE.Mesh(geometry, this.chunkMaterial);
@@ -99,8 +101,9 @@ export class Renderer {
   }
 
   setFogColor(color) {
-    this.scene.fog.color.set(color);
-    this.scene.background.set(color);
+    if (!color) return;
+    this.scene.fog.color.copy(color);
+    this.scene.background.copy(color);
     this.renderer.setClearColor(color);
   }
 
