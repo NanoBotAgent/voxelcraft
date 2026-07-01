@@ -41,6 +41,7 @@ export class Game {
     this.fps = 0;
     this.frameCount = 0;
     this.fpsTimer = 0;
+    this.spawnReady = false;
   }
 
   async loadRegistries() {
@@ -78,7 +79,6 @@ export class Game {
 
   initAudio() {
     this.audio = new AudioManager();
-    // Audio context needs user gesture to start; init on first click
     const initAudio = async () => {
       await this.audio.init();
       this.audio.resume();
@@ -93,6 +93,10 @@ export class Game {
     this.running = true;
     this.lastTime = performance.now();
     this.events.emit('game:start');
+
+    // Create world and start async chunk loading
+    this.createWorld('World', Math.floor(Math.random() * 2147483647), 'survival', 'normal');
+
     requestAnimationFrame((t) => this.loop(t));
   }
 
@@ -118,7 +122,7 @@ export class Game {
 
     // Fixed timestep simulation (20 TPS)
     this.simAccumulator += delta;
-    const maxAccum = this.SIM_TICK_MS * 5; // prevent spiral of death
+    const maxAccum = this.SIM_TICK_MS * 5;
     if (this.simAccumulator > maxAccum) this.simAccumulator = maxAccum;
 
     while (this.simAccumulator >= this.SIM_TICK_MS) {
@@ -138,9 +142,52 @@ export class Game {
     if (this.player) this.player.tick(dt);
     if (this.playerController) this.playerController.tick(dt);
     if (this.blockInteraction) this.blockInteraction.update(dt);
-    // Update chunks around player
+
+    // Update chunks around player incrementally
     if (this.world && this.player) {
       this.world.updateChunks(this.player.position.x, this.player.position.z);
+
+      // Simple gravity + collision
+      this.applyPhysics(dt);
+    }
+  }
+
+  applyPhysics(dt) {
+    if (!this.world || !this.player) return;
+    const p = this.player;
+    const GRAVITY = 24.0; // blocks/s^2
+
+    if (!p.isFlying) {
+      p.velocity.y -= GRAVITY * dt;
+    }
+
+    // Move player
+    p.position.x += p.velocity.x * dt;
+    p.position.y += p.velocity.y * dt;
+    p.position.z += p.velocity.z * dt;
+
+    // Simple ground collision
+    const feetY = Math.floor(p.position.y);
+    const px = Math.floor(p.position.x);
+    const pz = Math.floor(p.position.z);
+    const blockBelow = this.world.getBlock(px, feetY, pz);
+
+    if (blockBelow.id !== 0 && !this.world.game.blockRegistry.isLiquid(blockBelow.id)) {
+      // Snap to top of block
+      if (p.position.y < feetY + 1 && p.velocity.y <= 0) {
+        p.position.y = feetY + 1;
+        p.velocity.y = 0;
+        p.onGround = true;
+      }
+    } else {
+      p.onGround = false;
+    }
+
+    // Prevent falling through bedrock
+    if (p.position.y < -60) {
+      p.position.y = -60;
+      p.velocity.y = 0;
+      p.onGround = true;
     }
   }
 
@@ -157,7 +204,9 @@ export class Game {
 
   createWorld(name, seed, gamemode, difficulty) {
     this.world = new World(this, name, seed, gamemode, difficulty);
-    this.world.generateSpawn();
+    // Generate only the immediate spawn chunks (3x3) synchronously
+    this.world.generateSpawnArea();
+    // Player starts at spawn, chunks will load incrementally
     this.player.spawn(this.world);
     this.events.emit('world:create', { name, seed });
   }
